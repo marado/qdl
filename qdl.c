@@ -384,7 +384,10 @@ int qdl_write(struct qdl_device *qdl, const void *buf, size_t len, bool eot, uns
 		bulk.len = xfer;
 		bulk.data = data;
 		bulk.timeout = timeout;
+
+		n = ioctl(qdl->fd, USBDEVFS_BULK, &bulk);
 		if(n != xfer) {
+			fprintf(stderr, "ERROR: n = %d, errno = %d (%s)\n",
 				n, errno, strerror(errno));
 			return -1;
 		}
@@ -503,7 +506,7 @@ int main(int argc, char **argv)
 	if (ret)
 		return 1;
 
-	ret = sahara_run(&qdl, prog_mbn);
+	ret = sahara_run(&qdl, prog_mbn, write_timeout_ms);
 	if (ret < 0)
 		return 1;
 

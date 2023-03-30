@@ -98,7 +98,7 @@ int program_load(const char *program_file)
 }
 	
 int program_execute(struct qdl_device *qdl, int (*apply)(struct qdl_device *qdl, struct program *program, int fd, unsigned int read_timeout, unsigned int write_timeout),
-		    const char *incdir)
+		    const char *incdir, unsigned int read_timeout, unsigned int write_timeout)
 {
 	struct program *program;
 	const char *filename;
@@ -124,7 +124,7 @@ int program_execute(struct qdl_device *qdl, int (*apply)(struct qdl_device *qdl,
 			continue;
 		}
 
-		ret = apply(qdl, program, fd);
+		ret = apply(qdl, program, fd, read_timeout, write_timeout);
 
 		close(fd);
 		if (ret)

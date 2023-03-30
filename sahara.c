@@ -85,7 +85,7 @@ struct sahara_pkt {
 	};
 };
 
-static void sahara_hello(struct qdl_device *qdl, struct sahara_pkt *pkt)
+static void sahara_hello(struct qdl_device *qdl, struct sahara_pkt *pkt, unsigned int timeout)
 {
 	struct sahara_pkt resp;
 
@@ -101,10 +101,10 @@ static void sahara_hello(struct qdl_device *qdl, struct sahara_pkt *pkt)
 	resp.hello_resp.status = 0;
 	resp.hello_resp.mode = pkt->hello_req.mode;
 
-	qdl_write(qdl, &resp, resp.length, true);
+	qdl_write(qdl, &resp, resp.length, true, timeout);
 }
 
-static int sahara_read_common(struct qdl_device *qdl, const char *mbn, off_t offset, size_t len)
+static int sahara_read_common(struct qdl_device *qdl, const char *mbn, off_t offset, size_t len, unsigned int timeout)
 {
 	int progfd;
 	ssize_t n;
@@ -126,7 +126,7 @@ static int sahara_read_common(struct qdl_device *qdl, const char *mbn, off_t off
 		goto out;
 	}
 
-	n = qdl_write(qdl, buf, n, true);
+	n = qdl_write(qdl, buf, n, true, timeout);
 	if (n != len)
 		err(1, "failed to write %zu bytes to sahara", len);
 
@@ -137,7 +137,7 @@ out:
 	return ret;
 }
 
-static void sahara_read(struct qdl_device *qdl, struct sahara_pkt *pkt, const char *mbn)
+static void sahara_read(struct qdl_device *qdl, struct sahara_pkt *pkt, const char *mbn, unsigned int timeout)
 {
 	int ret;
 
@@ -146,12 +146,12 @@ static void sahara_read(struct qdl_device *qdl, struct sahara_pkt *pkt, const ch
 	printf("READ image: %d offset: 0x%x length: 0x%x\n",
 	       pkt->read_req.image, pkt->read_req.offset, pkt->read_req.length);
 
-	ret = sahara_read_common(qdl, mbn, pkt->read_req.offset, pkt->read_req.length);
+	ret = sahara_read_common(qdl, mbn, pkt->read_req.offset, pkt->read_req.length, timeout);
 	if (ret < 0)
 		errx(1, "failed to read image chunk to sahara");
 }
 
-static void sahara_read64(struct qdl_device *qdl, struct sahara_pkt *pkt, const char *mbn)
+static void sahara_read64(struct qdl_device *qdl, struct sahara_pkt *pkt, const char *mbn, unsigned int timeout)
 {
 	int ret;
 
@@ -160,12 +160,12 @@ static void sahara_read64(struct qdl_device *qdl, struct sahara_pkt *pkt, const 
 	printf("READ64 image: %" PRId64 " offset: 0x%" PRIx64 " length: 0x%" PRIx64 "\n",
 	       pkt->read64_req.image, pkt->read64_req.offset, pkt->read64_req.length);
 
-	ret = sahara_read_common(qdl, mbn, pkt->read64_req.offset, pkt->read64_req.length);
+	ret = sahara_read_common(qdl, mbn, pkt->read64_req.offset, pkt->read64_req.length, timeout);
 	if (ret < 0)
 		errx(1, "failed to read image chunk to sahara");
 }
 
-static void sahara_eoi(struct qdl_device *qdl, struct sahara_pkt *pkt)
+static void sahara_eoi(struct qdl_device *qdl, struct sahara_pkt *pkt, unsigned int timeout)
 {
 	struct sahara_pkt done;
 
@@ -180,7 +180,7 @@ static void sahara_eoi(struct qdl_device *qdl, struct sahara_pkt *pkt)
 
 	done.cmd = 5;
 	done.length = 0x8;
-	qdl_write(qdl, &done, done.length, true);
+	qdl_write(qdl, &done, done.length, true, timeout);
 }
 
 static int sahara_done(struct qdl_device *qdl, struct sahara_pkt *pkt)
@@ -192,7 +192,7 @@ static int sahara_done(struct qdl_device *qdl, struct sahara_pkt *pkt)
 	return pkt->done_resp.status;
 }
 
-int sahara_run(struct qdl_device *qdl, char *prog_mbn)
+int sahara_run(struct qdl_device *qdl, char *prog_mbn, unsigned int write_timeout)
 {
 	struct sahara_pkt *pkt;
 	char buf[4096];
@@ -213,20 +213,20 @@ int sahara_run(struct qdl_device *qdl, char *prog_mbn)
 
 		switch (pkt->cmd) {
 		case 1:
-			sahara_hello(qdl, pkt);
+			sahara_hello(qdl, pkt, write_timeout);
 			break;
 		case 3:
-			sahara_read(qdl, pkt, prog_mbn);
+			sahara_read(qdl, pkt, prog_mbn, write_timeout);
 			break;
 		case 4:
-			sahara_eoi(qdl, pkt);
+			sahara_eoi(qdl, pkt, write_timeout);
 			break;
 		case 6:
 			sahara_done(qdl, pkt);
 			done = true;
 			break;
 		case 0x12:
-			sahara_read64(qdl, pkt, prog_mbn);
+			sahara_read64(qdl, pkt, prog_mbn, write_timeout);
 			break;
 		default:
 			sprintf(tmp, "CMD%x", pkt->cmd);

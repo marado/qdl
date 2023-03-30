@@ -18,7 +18,7 @@ struct program {
 
 int program_load(const char *program_file);
 int program_execute(struct qdl_device *qdl, int (*apply)(struct qdl_device *qdl, struct program *program, int fd, unsigned int read_timeout, unsigned int write_timeout),
-		    const char *incdir);
+		    const char *incdir, unsigned int read_timeout, unsigned int write_timeout);
 int program_find_bootable_partition(void);
 
 #endif

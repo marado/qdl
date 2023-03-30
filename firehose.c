@@ -390,7 +390,7 @@ out:
 	return ret;
 }
 
-static int firehose_apply_patch(struct qdl_device *qdl, struct patch *patch, unsigned int timeout)
+static int firehose_apply_patch(struct qdl_device *qdl, struct patch *patch, unsigned int read_timeout, unsigned int write_timeout)
 {
 	xmlNode *root;
 	xmlNode *node;
@@ -412,11 +412,11 @@ static int firehose_apply_patch(struct qdl_device *qdl, struct patch *patch, uns
 	xml_setpropf(node, "start_sector", "%s", patch->start_sector);
 	xml_setpropf(node, "value", "%s", patch->value);
 
-	ret = firehose_write(qdl, doc, timeout);
+	ret = firehose_write(qdl, doc, write_timeout);
 	if (ret < 0)
 		goto out;
 
-	ret = firehose_read(qdl, timeout, firehose_nop_parser);
+	ret = firehose_read(qdl, read_timeout, firehose_nop_parser);
 	if (ret)
 		fprintf(stderr, "[APPLY PATCH] %d\n", ret);
 
@@ -585,7 +585,7 @@ int firehose_run(struct qdl_device *qdl, const char *incdir, const char *storage
 		if (ret)
 			return ret;
 		ret = ufs_provisioning_execute(qdl, firehose_apply_ufs_common,
-			firehose_apply_ufs_body, firehose_apply_ufs_epilogue);
+			firehose_apply_ufs_body, firehose_apply_ufs_epilogue, read_timeout, write_timeout);
 		if (!ret)
 			printf("UFS provisioning succeeded\n");
 		else
@@ -597,11 +597,11 @@ int firehose_run(struct qdl_device *qdl, const char *incdir, const char *storage
 	if (ret)
 		return ret;
 
-	ret = program_execute(qdl, firehose_program, incdir);
+	ret = program_execute(qdl, firehose_program, incdir, read_timeout, write_timeout);
 	if (ret)
 		return ret;
 
-	ret = patch_execute(qdl, firehose_apply_patch);
+	ret = patch_execute(qdl, firehose_apply_patch, read_timeout, write_timeout);
 	if (ret)
 		return ret;
 
